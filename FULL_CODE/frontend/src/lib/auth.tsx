@@ -41,6 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   const login = async (username: string, password: string) => {
+    if (typeof localStorage !== "undefined") localStorage.removeItem("sm_token");
     const r = await api<{ user: User; token?: string }>("/api/auth/login", { body: { username, password, mode: "cookie" } });
     if (r.token && typeof localStorage !== "undefined") {
       localStorage.setItem("sm_token", r.token);
