@@ -91,7 +91,11 @@ def _secret_from_env_or_file(env_name: str, file_name: str, nbytes: int = 32) ->
     """Read a hex secret from the environment, or create one in data/secrets on first use."""
     value = os.environ.get(env_name)
     if value:
-        return bytes.fromhex(value)
+        try:
+            return bytes.fromhex(value)
+        except ValueError:
+            import hashlib
+            return hashlib.sha256(value.encode("utf-8")).digest()
     path = get_settings().secrets_dir / file_name
     if not path.exists():
         path.write_text(secrets.token_hex(nbytes), encoding="utf-8")
@@ -99,7 +103,12 @@ def _secret_from_env_or_file(env_name: str, file_name: str, nbytes: int = 32) ->
             os.chmod(path, 0o600)
         except OSError:
             pass
-    return bytes.fromhex(path.read_text(encoding="utf-8").strip())
+    raw = path.read_text(encoding="utf-8").strip()
+    try:
+        return bytes.fromhex(raw)
+    except ValueError:
+        import hashlib
+        return hashlib.sha256(raw.encode("utf-8")).digest()
 
 
 @lru_cache

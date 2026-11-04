@@ -105,8 +105,10 @@ wheels/
 # ------------------------------------------------------------------------------
 node_modules/
 FULL_CODE/frontend/node_modules/
-FULL_CODE/frontend/dist/
+!FULL_CODE/frontend/dist/
+!FULL_CODE/frontend/dist/**
 dist/
+!FULL_CODE/frontend/dist/
 *.tsbuildinfo
 
 # Package manager logs

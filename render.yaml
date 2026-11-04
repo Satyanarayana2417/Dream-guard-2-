@@ -12,24 +12,24 @@ services:
     healthCheckPath: /api/health
     envVars:
       - key: PYTHON_VERSION
-        value: 3.12.0
+        value: 3.12.3
       - key: SENTINEL_ENV
         value: production
       - key: SENTINEL_DATASET_DIR
         value: Datasets
       - key: SENTINEL_ALLOWED_DB_HOSTS
         value: localhost,127.0.0.1
-      # The Vercel frontend proxies /api (same origin), so no browser origin needs CORS.
+      - key: SENTINEL_CORS_ORIGIN_REGEX
+        value: ".*"
       - key: SENTINEL_CORS_ORIGINS
         value: "http://localhost:5173,http://127.0.0.1:5173"
-      # Free-plan disk is wiped on every restart; pin these (64 hex chars each, e.g.
-      # `python -c "import secrets;print(secrets.token_hex(32))"`) so pseudonym hashes stay stable.
+      # Secure auto-generated 32-byte secret keys for Render
       - key: SENTINEL_HMAC_KEY
-        sync: false
+        generateValue: true
       - key: SENTINEL_CREDENTIAL_KEY
-        sync: false
+        generateValue: true
       # Gemini AI classification (optional). Set the key in the Render dashboard; never commit it.
       - key: GEMINI_API_KEY
         sync: false
       - key: GEMINI_MODEL
-        value: gemini-3.8-flash
+        value: gemini-2.5-flash

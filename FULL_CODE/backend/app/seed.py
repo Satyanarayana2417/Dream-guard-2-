@@ -191,7 +191,7 @@ def _activate(db: Session, conn: DbConnection, schema: str, result: dict, key: s
         get_adapter(conn).test()
         conn.status, conn.status_detail = "healthy", "connected"
         db.commit()
-        run = scan_connection(db, None, conn, sample_size=300)
+        run = scan_connection(db, None, conn, sample_size=50)
         seed_grants(db, conn, schema)
         result[key] = f"registered, scan {run.status} ({run.tables_scanned} tables)"
     except Exception as exc:  # noqa: BLE001

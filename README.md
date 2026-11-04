@@ -1,13 +1,3 @@
----
-title: DreamGuard
-emoji: 🛡️
-colorFrom: blue
-colorTo: indigo
-sdk: docker
-app_port: 7860
-pinned: false
----
-
 # 234 · B1: DreamGuard — Smart Data Masking System for PII Protection
 
 > Automated PII discovery, local and cloud AI classification, and dynamic role-based data masking over financial databases without modifying stored records.

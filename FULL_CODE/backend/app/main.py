@@ -140,7 +140,7 @@ _dist = ROOT_DIR / "frontend" / "dist"
 if _dist.exists():
     app.mount("/assets", StaticFiles(directory=_dist / "assets"), name="assets")
 
-    @app.get("/{full_path:path}", include_in_schema=False)
+    @app.api_route("/{full_path:path}", methods=["GET", "HEAD"], include_in_schema=False)
     def spa(full_path: str):
         if full_path.startswith("api/"):
             raise HTTPException(status_code=404, detail="Not found")
