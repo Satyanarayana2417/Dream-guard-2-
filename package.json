@@ -1,0 +1,7 @@
+{
+  "name": "dreamguard",
+  "private": true,
+  "scripts": {
+    "build": "npm run build --prefix FULL_CODE/frontend"
+  }
+}

@@ -85,8 +85,7 @@ def login(body: LoginIn, request: Request, response: Response, db: Session = Dep
             max_age=get_settings().session_hours * 3600,
             path="/",
         )
-    else:
-        out["token"] = token
+    out["token"] = token
     return out
 
 
