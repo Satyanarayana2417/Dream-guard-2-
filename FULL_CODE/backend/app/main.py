@@ -83,8 +83,11 @@ async def security_headers(request: Request, call_next):
         response.headers["Cache-Control"] = "no-store"
     else:
         response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-            "font-src 'self' data: https://fonts.gstatic.com; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'"
+            "default-src 'self'; img-src 'self' data: https://res.cloudinary.com https://fastapi.tiangolo.com; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+            "font-src 'self' data: https://fonts.gstatic.com; "
+            "connect-src 'self' https://api.cloudinary.com https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com; "
+            "frame-ancestors 'none'; base-uri 'none'"
         )
     return response
 
