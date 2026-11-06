@@ -325,7 +325,7 @@ export default function Layout() {
           <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             <div className="hidden text-right sm:block">
               <div className="text-[13px] font-semibold leading-4 text-[#172B45]">{user?.display_name}</div>
-              <div className="text-[11px] text-[#64748B] font-mono">@{user?.username}</div>
+              <div className="text-[11px] text-[#64748B] font-mono">{user?.email || `@${user?.username}`}</div>
             </div>
             {user && <RoleChip role={user.role} />}
             <button

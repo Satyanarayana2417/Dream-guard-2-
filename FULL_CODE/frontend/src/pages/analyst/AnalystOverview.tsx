@@ -12,6 +12,7 @@ import { Badge, Button, Card, Spinner, Stat } from "../../components/ui";
 import { apiAllowDenied } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { useConnections } from "../../lib/connections";
+import FirebaseUserDataCard from "../../components/FirebaseUserDataCard";
 
 export default function AnalystOverview() {
   const { user } = useAuth();
@@ -89,6 +90,8 @@ export default function AnalystOverview() {
           </Link>
         </div>
       </div>
+
+      <FirebaseUserDataCard />
 
       {/* Approved Analytics Metrics */}
       <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">

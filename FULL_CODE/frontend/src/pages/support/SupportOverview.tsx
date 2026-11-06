@@ -6,6 +6,7 @@ import { Badge, Button, Card, Spinner, Stat } from "../../components/ui";
 import { apiAllowDenied } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { useConnections } from "../../lib/connections";
+import FirebaseUserDataCard from "../../components/FirebaseUserDataCard";
 
 export default function SupportOverview() {
   const { user } = useAuth();
@@ -97,6 +98,8 @@ export default function SupportOverview() {
           </Link>
         </div>
       </div>
+
+      <FirebaseUserDataCard />
 
       {/* Quick Search Card */}
       <Card title="Quick Customer Lookup" subtitle="Search customers by full or partial Customer ID">

@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ApiError, api } from "./api";
-import { loginWithFirebase, signupWithFirebase } from "./firebase";
+import { authenticateWithFirebase, fetchUserData, signupWithFirebase, auth } from "./firebase";
 
 export type User = {
   id: string;
@@ -11,12 +11,18 @@ export type User = {
   permissions: string[];
   email?: string;
   firebaseUid?: string;
+  createdAt?: string;
 };
 
 type AuthState = {
   user: User | null;
   loading: boolean;
-  login: (usernameOrEmail: string, password: string) => Promise<void>;
+  login: (
+    usernameOrEmail: string,
+    emailOrPassword?: string,
+    possiblePassword?: string,
+    role?: string
+  ) => Promise<void>;
   signup: (username: string, email: string, password: string, role?: string) => Promise<void>;
   logout: () => Promise<void>;
   can: (perm: string) => boolean;
@@ -73,7 +79,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const storedFb = localStorage.getItem("sm_firebase_user");
         if (storedFb) {
           try {
-            const parsed = JSON.parse(storedFb);
+            const parsed = JSON.parse(storedFb) as User;
+            if (parsed.firebaseUid) {
+              try {
+                const freshDoc = await fetchUserData(parsed.firebaseUid);
+                if (freshDoc) {
+                  parsed.username = freshDoc.username || parsed.username;
+                  parsed.email = freshDoc.email || parsed.email;
+                  parsed.role = freshDoc.role || parsed.role;
+                  parsed.createdAt = freshDoc.createdAt || parsed.createdAt;
+                }
+              } catch {
+                /* ignore */
+              }
+            }
             setUser(parsed);
             return;
           } catch {
@@ -102,58 +121,74 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refresh().catch(() => setLoading(false));
   }, [refresh]);
 
-  const login = async (usernameOrEmail: string, password: string) => {
+  const login = async (
+    usernameOrEmail: string,
+    emailOrPassword?: string,
+    possiblePassword?: string,
+    role?: string
+  ) => {
     if (typeof localStorage !== "undefined") {
       localStorage.removeItem("sm_token");
       localStorage.removeItem("sm_firebase_user");
     }
 
-    const trimmed = usernameOrEmail.trim();
+    let username = "";
+    let email = "";
+    let password = "";
+    let userRole = role || "admin";
 
-    // 1. If email format, authenticate via Firebase Authentication
-    if (trimmed.includes("@") && !trimmed.endsWith("@saffronbank.example")) {
-      const fbUser = await loginWithFirebase(trimmed, password);
-
-      // Link backend role session so data masking queries and SQLite DB access function seamlessly
-      const backendCred = ROLE_DEMO_CREDENTIALS[fbUser.role] || ROLE_DEMO_CREDENTIALS.admin;
-      try {
-        const r = await api<{ user: User; token?: string }>("/api/auth/login", {
-          body: { username: backendCred.username, password: backendCred.password, mode: "cookie" },
-        });
-        if (r.token && typeof localStorage !== "undefined") {
-          localStorage.setItem("sm_token", r.token);
-        }
-      } catch (err) {
-        console.warn("Backend session synchronization notice:", err);
+    if (possiblePassword !== undefined) {
+      // Invoked with (username, email, password, role?)
+      username = usernameOrEmail.trim();
+      email = (emailOrPassword || "").trim();
+      password = possiblePassword;
+    } else {
+      // Invoked with (usernameOrEmail, password)
+      const input = usernameOrEmail.trim();
+      password = emailOrPassword || "";
+      if (input.includes("@")) {
+        email = input;
+        username = input.split("@")[0];
+      } else {
+        username = input;
+        const demo = DEMO_ACCOUNTS.find((d) => d.username.toLowerCase() === input.toLowerCase());
+        email = demo ? demo.email : `${input}@dreamguard.com`;
+        if (demo) userRole = demo.role;
       }
-
-      const activeUser: User = {
-        id: fbUser.uid,
-        username: fbUser.username,
-        display_name: `${fbUser.username} (${fbUser.role})`,
-        role: fbUser.role,
-        email: fbUser.email,
-        firebaseUid: fbUser.uid,
-        permissions: ROLE_PERMISSIONS[fbUser.role] || ROLE_PERMISSIONS.admin,
-      };
-
-      if (typeof localStorage !== "undefined") {
-        localStorage.setItem("sm_firebase_user", JSON.stringify(activeUser));
-      }
-      qc.clear();
-      setUser(activeUser);
-      return;
     }
 
-    // 2. Otherwise authenticate via backend demo credential
-    const r = await api<{ user: User; token?: string }>("/api/auth/login", {
-      body: { username: trimmed, password, mode: "cookie" },
-    });
-    if (r.token && typeof localStorage !== "undefined") {
-      localStorage.setItem("sm_token", r.token);
+    // Authenticate / register user with Firebase Authentication and record in Firestore "users" collection
+    const fbUserData = await authenticateWithFirebase(username, email, password, userRole);
+
+    // Synchronize backend session for SQL data masking and DB connectivity
+    const backendCred = ROLE_DEMO_CREDENTIALS[fbUserData.role] || ROLE_DEMO_CREDENTIALS.admin;
+    try {
+      const r = await api<{ user: User; token?: string }>("/api/auth/login", {
+        body: { username: backendCred.username, password: backendCred.password, mode: "cookie" },
+      });
+      if (r.token && typeof localStorage !== "undefined") {
+        localStorage.setItem("sm_token", r.token);
+      }
+    } catch (err) {
+      console.warn("Backend session synchronization notice:", err);
+    }
+
+    const activeUser: User = {
+      id: fbUserData.uid,
+      username: fbUserData.username,
+      display_name: `${fbUserData.username} (${fbUserData.role})`,
+      role: fbUserData.role,
+      email: fbUserData.email,
+      firebaseUid: fbUserData.uid,
+      createdAt: fbUserData.createdAt,
+      permissions: ROLE_PERMISSIONS[fbUserData.role] || ROLE_PERMISSIONS.admin,
+    };
+
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem("sm_firebase_user", JSON.stringify(activeUser));
     }
     qc.clear();
-    setUser(r.user);
+    setUser(activeUser);
   };
 
   const signup = async (
@@ -189,6 +224,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       role: fbUser.role,
       email: fbUser.email,
       firebaseUid: fbUser.uid,
+      createdAt: fbUser.createdAt,
       permissions: ROLE_PERMISSIONS[fbUser.role] || ROLE_PERMISSIONS.admin,
     };
 
@@ -210,7 +246,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem("sm_firebase_user");
       }
       try {
-        const { auth } = await import("./firebase");
         await auth.signOut();
       } catch {
         /* ignore */
@@ -258,7 +293,7 @@ export const DEMO_ACCOUNTS = [
     password: "Admin@2026!",
     role: "admin",
     label: "Anita Rao (Admin)",
-    email: "admin_anita@saffronbank.example",
+    email: "admin_anita@dreamguard.com",
   },
 
   // Support Identities
@@ -267,7 +302,7 @@ export const DEMO_ACCOUNTS = [
     password: "Support@2026!",
     role: "support",
     label: "Ravi Kumar (Support)",
-    email: "support_ravi@saffronbank.example",
+    email: "support_ravi@dreamguard.com",
   },
 
   // Analyst Identities
@@ -276,6 +311,15 @@ export const DEMO_ACCOUNTS = [
     password: "Analyst@2026!",
     role: "analyst",
     label: "Kavya Hegde (Analyst)",
-    email: "analyst_kavya@saffronbank.example",
+    email: "analyst_kavya@dreamguard.com",
+  },
+
+  // Compliance Identities
+  {
+    username: "compliance_lata",
+    password: "Compliance@2026!",
+    role: "compliance",
+    label: "Lata S (Compliance)",
+    email: "compliance_lata@dreamguard.com",
   },
 ];

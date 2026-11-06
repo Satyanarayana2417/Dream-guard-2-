@@ -5,6 +5,7 @@ import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieCh
 import { Badge, Button, Card, Empty, ErrorText, OutcomeBadge, PageHeader, Spinner, Stat } from "../components/ui";
 import { api, fmtTime } from "../lib/api";
 import { KIND_LABEL } from "../lib/connections";
+import FirebaseUserDataCard from "../components/FirebaseUserDataCard";
 
 const SENS_COLORS: Record<string, string> = {
   PII_HIGH: "#E11D48",
@@ -52,6 +53,8 @@ export default function OverviewPage() {
           </>
         }
       />
+
+      <FirebaseUserDataCard />
 
       {o.tables_scanned === 0 ? (
         <Empty

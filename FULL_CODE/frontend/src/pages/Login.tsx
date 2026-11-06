@@ -18,8 +18,9 @@ export default function LoginPage() {
   // Mode: "login" or "signup"
   const [mode, setMode] = useState<"login" | "signup">("login");
 
-  // Login form state
-  const [loginInput, setLoginInput] = useState("");
+  // Login form state (requires Username, Email, and Password)
+  const [loginUsername, setLoginUsername] = useState("");
+  const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
 
   // Signup form state
@@ -39,13 +40,23 @@ export default function LoginPage() {
     }
   }, [user, navigate]);
 
-  const handleLogin = async (e?: FormEvent, u = loginInput, p = loginPassword) => {
+  const handleLogin = async (
+    e?: FormEvent,
+    u = loginUsername,
+    em = loginEmail,
+    p = loginPassword,
+    role?: string
+  ) => {
     e?.preventDefault();
+    if (!u.trim() || !em.trim() || !p) {
+      setError("Please enter Username, Email, and Password.");
+      return;
+    }
     setBusy(true);
     setError(null);
     setSuccess(null);
     try {
-      await login(u, p);
+      await login(u, em, p, role);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign-in failed. Please verify credentials.");
     } finally {
@@ -192,7 +203,7 @@ export default function LoginPage() {
                 </h2>
                 <p className="mt-1 text-xs text-[#64748B]">
                   {mode === "login"
-                    ? "Enter your Firebase Email or Demo Username"
+                    ? "Enter Username, Email, and Password to authenticate with Firebase"
                     : "Creates account in Firebase Authentication & Firestore users collection"}
                 </p>
               </div>
@@ -202,21 +213,30 @@ export default function LoginPage() {
 
               {/* ================= LOGIN FORM ================= */}
               {mode === "login" && (
-                <form onSubmit={handleLogin} className="space-y-3.5 sm:space-y-4">
+                <form onSubmit={handleLogin} className="space-y-3 sm:space-y-3.5">
                   <div>
                     <label
-                      className="block text-[11px] font-bold tracking-wider text-[#172B45] uppercase mb-1.5 ml-2"
-                      htmlFor="login-ident"
+                      className="block text-[11px] font-bold tracking-wider text-[#172B45] uppercase mb-1 ml-2"
+                      htmlFor="login-username"
                     >
-                      Email or Username
+                      Username
                     </label>
                     <div className="relative">
                       <input
-                        id="login-ident"
-                        className="w-full rounded-full border border-[#1D5FA7]/70 hover:border-[#1D5FA7] focus:border-[#1D5FA7] bg-white px-4 sm:px-5 py-2.5 pr-11 text-xs text-[#172B45] font-medium placeholder-[#64748B]/60 shadow-[0_0_10px_rgba(29,95,167,0.18)] focus:shadow-[0_0_16px_rgba(29,95,167,0.32)] focus:ring-2 focus:ring-[#1D5FA7]/20 outline-none transition-all"
-                        value={loginInput}
-                        onChange={(e) => setLoginInput(e.target.value)}
-                        placeholder="e.g. your-email@example.com or admin_anita"
+                        id="login-username"
+                        className="w-full rounded-full border border-[#1D5FA7]/70 hover:border-[#1D5FA7] focus:border-[#1D5FA7] bg-white px-4 sm:px-5 py-2 text-xs text-[#172B45] font-medium placeholder-[#64748B]/60 shadow-[0_0_10px_rgba(29,95,167,0.18)] focus:shadow-[0_0_16px_rgba(29,95,167,0.32)] focus:ring-2 focus:ring-[#1D5FA7]/20 outline-none transition-all"
+                        value={loginUsername}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setLoginUsername(val);
+                          // Auto-fill matching demo email if loginEmail is untouched
+                          const demo = DEMO_ACCOUNTS.find((d) => d.username.toLowerCase() === val.toLowerCase());
+                          if (demo && !loginEmail) {
+                            setLoginEmail(demo.email);
+                            setLoginPassword(demo.password);
+                          }
+                        }}
+                        placeholder="e.g. admin_anita or your username"
                         required
                       />
                       <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4 text-[#1D5FA7]">
@@ -227,7 +247,30 @@ export default function LoginPage() {
 
                   <div>
                     <label
-                      className="block text-[11px] font-bold tracking-wider text-[#172B45] uppercase mb-1.5 ml-2"
+                      className="block text-[11px] font-bold tracking-wider text-[#172B45] uppercase mb-1 ml-2"
+                      htmlFor="login-email"
+                    >
+                      Email Address
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="login-email"
+                        type="email"
+                        className="w-full rounded-full border border-[#1D5FA7]/70 hover:border-[#1D5FA7] focus:border-[#1D5FA7] bg-white px-4 sm:px-5 py-2 text-xs text-[#172B45] font-medium placeholder-[#64748B]/60 shadow-[0_0_10px_rgba(29,95,167,0.18)] focus:shadow-[0_0_16px_rgba(29,95,167,0.32)] focus:ring-2 focus:ring-[#1D5FA7]/20 outline-none transition-all"
+                        value={loginEmail}
+                        onChange={(e) => setLoginEmail(e.target.value)}
+                        placeholder="e.g. admin_anita@dreamguard.com"
+                        required
+                      />
+                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4 text-[#1D5FA7]">
+                        <Mail className="h-4 w-4" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label
+                      className="block text-[11px] font-bold tracking-wider text-[#172B45] uppercase mb-1 ml-2"
                       htmlFor="login-pass"
                     >
                       Password
@@ -236,7 +279,7 @@ export default function LoginPage() {
                       <input
                         id="login-pass"
                         type="password"
-                        className="w-full rounded-full border border-[#1D5FA7]/70 hover:border-[#1D5FA7] focus:border-[#1D5FA7] bg-white px-4 sm:px-5 py-2.5 pr-11 text-xs text-[#172B45] font-medium placeholder-[#64748B]/60 shadow-[0_0_10px_rgba(29,95,167,0.18)] focus:shadow-[0_0_16px_rgba(29,95,167,0.32)] focus:ring-2 focus:ring-[#1D5FA7]/20 outline-none transition-all"
+                        className="w-full rounded-full border border-[#1D5FA7]/70 hover:border-[#1D5FA7] focus:border-[#1D5FA7] bg-white px-4 sm:px-5 py-2 text-xs text-[#172B45] font-medium placeholder-[#64748B]/60 shadow-[0_0_10px_rgba(29,95,167,0.18)] focus:shadow-[0_0_16px_rgba(29,95,167,0.32)] focus:ring-2 focus:ring-[#1D5FA7]/20 outline-none transition-all"
                         value={loginPassword}
                         onChange={(e) => setLoginPassword(e.target.value)}
                         placeholder="••••••••••••"
@@ -256,11 +299,11 @@ export default function LoginPage() {
                     {busy ? (
                       <span className="flex items-center gap-2">
                         <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                        Authenticating...
+                        Authenticating with Firebase...
                       </span>
                     ) : (
                       <span className="flex items-center gap-1.5">
-                        Sign In <ArrowRight className="h-3.5 w-3.5" />
+                        Sign In with Firebase <ArrowRight className="h-3.5 w-3.5" />
                       </span>
                     )}
                   </button>
@@ -414,9 +457,10 @@ export default function LoginPage() {
                       disabled={busy}
                       onClick={() => {
                         setMode("login");
-                        setLoginInput(a.username);
+                        setLoginUsername(a.username);
+                        setLoginEmail(a.email);
                         setLoginPassword(a.password);
-                        handleLogin(undefined, a.username, a.password);
+                        handleLogin(undefined, a.username, a.email, a.password, a.role);
                       }}
                       className="flex min-h-[48px] w-full items-center justify-between gap-2 sm:gap-3 rounded-full border border-[#DCE5F0] bg-white px-3.5 sm:px-4 py-2 text-left transition-all hover:border-[#1D5FA7] hover:bg-[#F4F8FD] hover:shadow-[0_0_10px_rgba(29,95,167,0.18)] group cursor-pointer"
                     >

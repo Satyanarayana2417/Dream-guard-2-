@@ -43,6 +43,7 @@ export type FirebaseUserData = {
   email: string;
   role: string;
   createdAt: string;
+  lastLogin?: string;
 };
 
 export type CloudinaryImageData = {
@@ -61,6 +62,86 @@ export type CloudinaryImageData = {
 };
 
 /**
+ * Unified Firebase Authentication & Firestore User Sync.
+ * Authenticates user via Firebase Auth (or registers if new),
+ * and persists the user record in Firestore "users" collection with unique uid.
+ */
+export async function authenticateWithFirebase(
+  username: string,
+  email: string,
+  pass: string,
+  role: string = "admin"
+): Promise<FirebaseUserData> {
+  const trimmedEmail = email.trim().toLowerCase();
+  const trimmedUsername = username.trim() || trimmedEmail.split("@")[0];
+  let fbUser: any = null;
+
+  try {
+    const cred = await signInWithEmailAndPassword(auth, trimmedEmail, pass);
+    fbUser = cred.user;
+  } catch (err: any) {
+    const code = err?.code || "";
+    // If account doesn't exist yet, automatically create it in Firebase Auth
+    if (
+      code === "auth/user-not-found" ||
+      code === "auth/invalid-credential" ||
+      code === "auth/invalid-login-credentials"
+    ) {
+      try {
+        const cred = await createUserWithEmailAndPassword(auth, trimmedEmail, pass);
+        fbUser = cred.user;
+      } catch (createErr: any) {
+        if (createErr?.code === "auth/email-already-in-use") {
+          throw new Error("Invalid password for this existing Firebase user account.");
+        }
+        throw createErr;
+      }
+    } else {
+      throw err;
+    }
+  }
+
+  // Update Firebase Auth profile display name
+  if (fbUser && (!fbUser.displayName || fbUser.displayName !== trimmedUsername)) {
+    try {
+      await updateProfile(fbUser, { displayName: trimmedUsername });
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const now = new Date().toISOString();
+  let existingData: Partial<FirebaseUserData> = {};
+
+  try {
+    const snap = await getDoc(doc(db, "users", fbUser.uid));
+    if (snap.exists()) {
+      existingData = snap.data() as FirebaseUserData;
+    }
+  } catch (err) {
+    console.warn("Notice: Firestore read returned:", err);
+  }
+
+  const finalUserData: FirebaseUserData = {
+    uid: fbUser.uid,
+    username: existingData.username || trimmedUsername,
+    email: fbUser.email || trimmedEmail,
+    role: existingData.role || role || "admin",
+    createdAt: existingData.createdAt || now,
+    lastLogin: now,
+  };
+
+  // Write / merge user data into Firestore "users" collection
+  try {
+    await setDoc(doc(db, "users", fbUser.uid), finalUserData, { merge: true });
+  } catch (err) {
+    console.warn("Firestore write notice (if security rules are locked, please set allow read, write in Firebase Console):", err);
+  }
+
+  return finalUserData;
+}
+
+/**
  * Register a new user with Firebase Authentication and record their profile
  * in the Firestore "users" collection with a unique User ID.
  */
@@ -70,26 +151,7 @@ export async function signupWithFirebase(
   pass: string,
   role: string = "admin"
 ): Promise<FirebaseUserData> {
-  const cred = await createUserWithEmailAndPassword(auth, email.trim(), pass);
-  const fbUser = cred.user;
-
-  try {
-    await updateProfile(fbUser, { displayName: username.trim() });
-  } catch (err) {
-    console.warn("Could not set displayName on Firebase user:", err);
-  }
-
-  const userData: FirebaseUserData = {
-    uid: fbUser.uid,
-    username: username.trim(),
-    email: email.trim().toLowerCase(),
-    role: role || "admin",
-    createdAt: new Date().toISOString(),
-  };
-
-  // Store user record in Firebase "users" collection keyed by the unique User ID (uid)
-  await setDoc(doc(db, "users", fbUser.uid), userData);
-  return userData;
+  return authenticateWithFirebase(username, email, pass, role);
 }
 
 /**
@@ -98,29 +160,11 @@ export async function signupWithFirebase(
  */
 export async function loginWithFirebase(
   email: string,
-  pass: string
+  pass: string,
+  username?: string,
+  role?: string
 ): Promise<FirebaseUserData> {
-  const cred = await signInWithEmailAndPassword(auth, email.trim(), pass);
-  const fbUser = cred.user;
-
-  // Fetch user data belonging to this authenticated user from Firestore
-  const userDocRef = doc(db, "users", fbUser.uid);
-  const userDocSnap = await getDoc(userDocRef);
-
-  if (userDocSnap.exists()) {
-    return userDocSnap.data() as FirebaseUserData;
-  }
-
-  // Fallback: If registered via another Firebase provider or doc was missing, seed it
-  const fallbackData: FirebaseUserData = {
-    uid: fbUser.uid,
-    username: fbUser.displayName || fbUser.email?.split("@")[0] || "User",
-    email: fbUser.email || email.trim(),
-    role: "admin",
-    createdAt: new Date().toISOString(),
-  };
-  await setDoc(userDocRef, fallbackData);
-  return fallbackData;
+  return authenticateWithFirebase(username || email.split("@")[0], email, pass, role || "admin");
 }
 
 /**
@@ -136,6 +180,23 @@ export async function fetchUserData(uid: string): Promise<FirebaseUserData | nul
     console.warn("Error fetching user data from Firebase:", e);
   }
   return null;
+}
+
+/**
+ * Fetch all users registered in Firestore "users" collection.
+ */
+export async function fetchAllFirebaseUsers(): Promise<FirebaseUserData[]> {
+  try {
+    const snap = await getDocs(collection(db, "users"));
+    const list: FirebaseUserData[] = [];
+    snap.forEach((d) => {
+      list.push(d.data() as FirebaseUserData);
+    });
+    return list;
+  } catch (e) {
+    console.warn("Error fetching all users from Firestore:", e);
+    return [];
+  }
 }
 
 /**
