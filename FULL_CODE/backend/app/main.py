@@ -77,7 +77,9 @@ async def security_headers(request: Request, call_next):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "no-referrer"
-    if request.url.path.startswith("/api"):
+    if request.url.path.startswith(("/docs", "/redoc", "/openapi.json")):
+        pass
+    elif request.url.path.startswith("/api"):
         response.headers["Cache-Control"] = "no-store"
     else:
         response.headers["Content-Security-Policy"] = (
