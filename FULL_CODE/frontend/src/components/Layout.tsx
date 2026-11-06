@@ -1,6 +1,5 @@
 import clsx from "clsx";
 import {
-  CloudUpload,
   Activity,
   BrainCircuit,
   BarChart3,
@@ -43,7 +42,6 @@ export const ADMIN_NAV: NavItem[] = [
   { to: "/admin/ml-model", label: "ML Model", icon: BrainCircuit },
   { to: "/admin/policies", label: "Masking Policies", icon: SlidersHorizontal },
   { to: "/admin/connections", label: "Database & Tables", icon: Database },
-  { to: "/admin/uploads", label: "Media & Cloudinary", icon: CloudUpload },
   { to: "/admin/audit", label: "Audit Center", icon: ScrollText },
   { to: "/admin/integrity", label: "Integrity Verification", icon: Fingerprint },
   { to: "/admin/settings", label: "Settings", icon: Settings },

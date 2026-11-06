@@ -1,4 +1,3 @@
-import CloudinaryMediaManager from "../components/CloudinaryMediaManager";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, FileText, FileUp, Table2, Trash2, UploadCloud } from "lucide-react";
 import { useRef, useState } from "react";
@@ -213,7 +212,6 @@ function DocResult({ up }: { up: any }) {
 
 export default function UploadsPage() {
   const qc = useQueryClient();
-  const [activeTab, setActiveTab] = useState<"cloudinary" | "documents">("cloudinary");
   const input = useRef<HTMLInputElement>(null);
   const [drag, setDrag] = useState(false);
   const [progress, setProgress] = useState<number | null>(null);
@@ -247,46 +245,9 @@ export default function UploadsPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Uploads & Cloud Media"
-        description="Upload images to Cloudinary with Firebase persistence, or scan CSV/TXT/DOCX documents for sensitive PII discovery."
-      />
+      <PageHeader title="File Upload & Data Import" description="Scan CSV, TXT, DOCX and legacy DOC files for sensitive data. Structured CSV data can be reviewed and imported; it is then protected by the same policies as every other table." />
 
-      {/* Mode Navigation Tabs */}
-      <div className="flex gap-2 border-b border-[#DCE5F0] mb-6">
-        <button
-          type="button"
-          onClick={() => setActiveTab("cloudinary")}
-          className={`pb-3 px-4 text-xs font-bold transition-all flex items-center gap-2 border-b-2 ${
-            activeTab === "cloudinary"
-              ? "border-[#1D5FA7] text-[#1D5FA7]"
-              : "border-transparent text-[#64748B] hover:text-[#172B45]"
-          }`}
-        >
-          <UploadCloud className="h-4 w-4" />
-          <span>Cloudinary & Firebase Images</span>
-          <Badge tone="cyan">v5openeu</Badge>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab("documents")}
-          className={`pb-3 px-4 text-xs font-bold transition-all flex items-center gap-2 border-b-2 ${
-            activeTab === "documents"
-              ? "border-[#1D5FA7] text-[#1D5FA7]"
-              : "border-transparent text-[#64748B] hover:text-[#172B45]"
-          }`}
-        >
-          <FileText className="h-4 w-4" />
-          <span>CSV & Document PII Scans</span>
-        </button>
-      </div>
-
-      {activeTab === "cloudinary" ? (
-        <CloudinaryMediaManager />
-      ) : (
-        <>
-          <div className="grid gap-4 xl:grid-cols-[1fr_340px]">
+      <div className="grid gap-4 xl:grid-cols-[1fr_340px]">
         <div
           onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
           onDragLeave={() => setDrag(false)}
@@ -370,8 +331,6 @@ export default function UploadsPage() {
           </div>
         )}
       </Card>
-        </>
-      )}
     </div>
   );
 }
